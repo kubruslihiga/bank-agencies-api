@@ -45,8 +45,7 @@ import java.util.stream.Collectors;
 
             List<AgencyGatewayResponse> agencies = findAllAgenciesUseCase.execute();
 
-            
-            Map<String, List<AgencyResponse>> collected = agencies.stream()
+            Map<String, List<AgencyResponse>> collected = agencies.stream().sorted((a1, a2) -> a1.getCity().compareTo(a2.getCity()))
             		.collect(Collectors.groupingBy(a -> a.getState(), Collectors.mapping(AgencyGatewayResponse::getResponse, Collectors.toList())));
 
             return new ResponseEntity<>(collected, HttpStatus.OK);

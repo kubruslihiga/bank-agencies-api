@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -75,7 +77,21 @@ public class AgenciesGatewayImpl implements AgenciesGateway {
     @Override
     @Cacheable(cacheNames = "AgencyGatewayResponseByUF")
     public List<AgencyGatewayResponse> findAsyncAgenciesByUf() {
-    	return new ArrayList<AgencyGatewayResponse>();
+    	List<String> ufs = Arrays.asList("AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO");
+    	List<CompletableFuture<List<AgencyGatewayResponse>>> completableFutureList = ufs.parallelStream().map(uf -> {
+    		return findAgenciesByUF(uf);
+    	}).collect(Collectors.toList());
+		CompletableFuture<List<AgencyGatewayResponse>>[] array = new CompletableFuture[completableFutureList.size()];
+    	CompletableFuture.allOf(array).join();
+    	List<AgencyGatewayResponse> ret = new ArrayList<>();
+    	for (CompletableFuture<List<AgencyGatewayResponse>> completableFuture : array) {
+			try {
+				ret.addAll(completableFuture.get());
+			} catch (InterruptedException | ExecutionException e) {
+				throw new RuntimeException(e);
+			}
+		}
+    	return ret;
     }
 
     @Async
@@ -108,35 +124,6 @@ public class AgenciesGatewayImpl implements AgenciesGateway {
         return CompletableFuture.completedFuture(ret);
     }
    
-    @Async
-    public CompletableFuture<List<AgencyGatewayResponse>> findAsyncAgenciesByUf(String uf) {
-    	List<AgencyGatewayResponse> ret = new ArrayList<>();
-		URI apiURI = UriComponentsBuilder
-                .fromUriString(baseUrl)
-                .queryParam("$format", "json")
-                .queryParam("$filter", "UF eq '" + uf + "'")
-                .build().toUri();
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .GET()
-                .uri(apiURI)
-                .build();
-
-        try {
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == HttpStatus.OK.value()) {
-                JsonNode parent = mapper.readTree(response.body());
-                String content = parent.get("value").toString();
-                ret = Arrays.asList(mapper.readValue(content, AgencyGatewayResponse[].class));
-            }
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException("Error when trying get all Agencies from API");
-        }
-
-        return CompletableFuture.completedFuture(ret);
-    }
-
     @Scheduled(fixedRate = 6000)
     public void evictCache() {
     	cacheManager.getCacheNames()
