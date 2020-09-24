@@ -50,7 +50,13 @@ public class AgencyGatewayResponse implements Serializable {
         this.state = state;
     }
 
-
+    public AgencyResponse getResponse() {
+    	return AgencyResponse.AgencyResponseBuilder.anAgencyResponse()
+        .bank(this.getBank())
+        .city(this.getCity())
+        .name(this.getName())
+        .state(this.getState()).build();
+    }
     public static final class AgencyGatewayResponseBuilder {
         private String name;
         private String bank;

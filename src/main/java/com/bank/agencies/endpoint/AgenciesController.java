@@ -9,7 +9,8 @@
     import org.springframework.web.bind.annotation.*;
 
     import java.util.List;
-    import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.stream.Collectors;
 
     @RestController
     @RequestMapping(value = "/agencies", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -36,5 +37,18 @@
                     .collect(Collectors.toList());
 
             return new ResponseEntity<>(agencyResponse, HttpStatus.OK);
+        }
+        
+        @GetMapping("/uf")
+        @ResponseStatus(HttpStatus.OK)
+        public ResponseEntity<Map<String, List<AgencyResponse>>> findAgenciesGroupbedByUf() {
+
+            List<AgencyGatewayResponse> agencies = findAllAgenciesUseCase.execute();
+
+            
+            Map<String, List<AgencyResponse>> collected = agencies.stream()
+            		.collect(Collectors.groupingBy(a -> a.getState(), Collectors.mapping(AgencyGatewayResponse::getResponse, Collectors.toList())));
+
+            return new ResponseEntity<>(collected, HttpStatus.OK);
         }
     }
